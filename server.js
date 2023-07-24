@@ -6,10 +6,13 @@ const Bottleneck = require('bottleneck');
 
 // Create a limiter for Riots rate limit api
 const limiter = new Bottleneck({
+  reservoir: 20,
+  reservoirRefreshAmount: 20,
+  reservoirRefreshInterval: 1000,
+  maxConcurrent: 1,
   minTime: 50,
-  reservoir: 100,
-  reservoirRefreshAmount: 100,
-  reservoirRefreshInterval: 2 * 60 * 1000,
+  highWater: 100,
+  strategy: Bottleneck.strategy.LEAK
 });
 
 const getSummonerByName = async (name) => {
@@ -86,11 +89,11 @@ app.get('/getWinRate/:name', async (req, res) => {
 
   for (const stats of teammateStats.values()) {
     if (stats.total > 2) {
-      winRates.push({ summonerName: stats.summonerName, winRate: (stats.wins / stats.total) * 100, totalGames: stats.total });
+      winRates.push({ summonerName: stats.summonerName, winRate: ((stats.wins / stats.total) * 100).toFixed(2), totalGames: stats.total });
     }
   }
 
-  res.send(winRates);
+  res.send(winRates.sort((a, b) => b.totalGames - a.totalGames));
 });
 
 app.get('/', (_, res) => {
