@@ -15,6 +15,7 @@ services:
       - "traefik.http.routers.app.rule=Host(`arena-api.fabienhp.com`)"
       - "traefik.http.routers.app.entrypoints=websecure"
       - "traefik.http.routers.app.tls.certresolver=myresolver"
+      - "traefik.http.services.app.loadbalancer.server.port=3000"
 
   mongo:
     image: mongo:latest
@@ -35,6 +36,7 @@ services:
       - ME_CONFIG_SITE_HOST=localhost
     depends_on:
       - mongo
+    restart: unless-stopped
     networks:
       - traefik-proxy
     labels:
@@ -42,6 +44,7 @@ services:
       - "traefik.http.routers.mongo-express.rule=Host(`mongo-express.fabienhp.com`)"
       - "traefik.http.routers.mongo-express.entrypoints=websecure"
       - "traefik.http.routers.mongo-express.tls.certresolver=myresolver"
+      - "traefik.http.services.mongo-express.loadbalancer.server.port=8081"
 
 volumes:
   mongo-data:
