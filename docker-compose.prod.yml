@@ -14,6 +14,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app.rule=Host(`arena-api.fabienhp.com`)"
+      - "traefik.http.routers.app.service=app"
+      - "traefik.http.routers.app.middlewares=traefik-auth"
       - "traefik.http.routers.app.entrypoints=websecure"
       - "traefik.http.routers.app.tls.certresolver=myresolver"
       - "traefik.http.services.app.loadbalancer.server.port=3000"
@@ -39,10 +41,13 @@ services:
       - mongo
     restart: unless-stopped
     networks:
+      - mongo-express-mongo-network
       - traefik-proxy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mongo-express.rule=Host(`mongo-express.fabienhp.com`)"
+      - "traefik.http.routers.mongo-express.service=mongo-express"
+      - "traefik.http.routers.mongo-express.middlewares=traefik-auth"
       - "traefik.http.routers.mongo-express.entrypoints=websecure"
       - "traefik.http.routers.mongo-express.tls.certresolver=myresolver"
       - "traefik.http.services.mongo-express.loadbalancer.server.port=8081"
@@ -54,4 +59,6 @@ networks:
   traefik-proxy:
     external: true
   app-mongo-network:
+    driver: bridge
+  mongo-express-mongo-network:
     driver: bridge
