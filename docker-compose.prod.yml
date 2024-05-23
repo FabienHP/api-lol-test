@@ -35,8 +35,6 @@ services:
       - ME_CONFIG_MONGODB_SERVER=mongo
       - ME_CONFIG_BASICAUTH_USERNAME=secure_admin
       - ME_CONFIG_BASICAUTH_PASSWORD=secure_password
-      - ME_CONFIG_SITE_BASEURL=/mongo-express
-      - ME_CONFIG_SITE_HOST=localhost
     depends_on:
       - mongo
     restart: unless-stopped
