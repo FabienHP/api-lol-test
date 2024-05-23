@@ -1,0 +1,41 @@
+version: '3'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: nodemon --legacy-watch server.js
+    depends_on:
+      - mongo
+      - mongo-express
+
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
+
+  mongo-express:
+    image: mongo-express:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=example
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_BASICAUTH_USERNAME=secure_admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=secure_password
+      - ME_CONFIG_SITE_BASEURL=/mongo-express
+      - ME_CONFIG_SITE_HOST=localhost
+    depends_on:
+      - mongo
+
+volumes:
+  mongo-data:

@@ -7,7 +7,7 @@ import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { log } from 'console';
+import mongoose from 'mongoose';
 
 const app = express();
 const port = 3000;
@@ -35,6 +35,18 @@ limiter.on('failed', async (error, _) => {
     return retryAfter * 1000;
   }
 });
+
+// Connect to MongoDB
+const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/riot_games';
+mongoose.connect(mongoURI);
+
+const matchSchema = new mongoose.Schema({
+  puuid: String,
+  matchId: String,
+  data: Object
+});
+
+const Match = mongoose.model('Match', matchSchema);
 
 const getAccountByRiotID = async (gameName, tagLine) => {
   return limiter.schedule(() => axiosInstance.get(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}`));
@@ -66,23 +78,43 @@ const getCachedChampionImage = async (championName) => {
   }
 };
 
+const fetchMatchDetailsWithDB = async (puuid) => {
+  const existingMatches = await Match.find({ puuid }).exec();
+  const existingMatchIds = existingMatches.map(match => match.matchId);
+
+  let allMatches = [];
+  let start = 0;
+  let hasMoreMatches = true;
+
+  while (hasMoreMatches) {
+    const { data: matchIds } = await getArenaMatchIds(puuid, start);
+    hasMoreMatches = matchIds.length === 100;
+
+    const newMatchIds = matchIds.filter(matchId => !existingMatchIds.includes(matchId));
+    if (newMatchIds.length > 0) {
+      const matchDetails = await Promise.all(newMatchIds.map(matchId => getMatchDetails(matchId)));
+      allMatches.push(...matchDetails);
+
+      const matchDocuments = matchDetails.map(match => ({
+        puuid,
+        matchId: match.metadata.matchId,
+        data: match
+      }));
+
+      await Match.insertMany(matchDocuments);
+    }
+
+    start += 100;
+  }
+
+  return [...existingMatches.map(match => match.data), ...allMatches];
+};
+
 app.get('/getAllArenaGames/:gameName/:tagLine', async (req, res) => {
   try {
     const { gameName, tagLine } = req.params;
     const { data } = await getAccountByRiotID(gameName, tagLine);
-    const allMatches = [];
-    let start = 0;
-    let hasMoreMatches = true;
-
-    while (hasMoreMatches) {
-      const { data: matchIds } = await getArenaMatchIds(data.puuid, start);
-      hasMoreMatches = matchIds.length === 100;
-
-      const matchDetails = await Promise.all(matchIds.map(matchId => getMatchDetails(matchId)));
-      allMatches.push(...matchDetails);
-
-      start += 100;
-    }
+    const allMatches = await fetchMatchDetailsWithDB(data.puuid);
 
     res.send(allMatches);
   } catch (error) {
@@ -95,19 +127,7 @@ app.get('/getArenaWinRate/:gameName/:tagLine', async (req, res) => {
   try {
     const { gameName, tagLine } = req.params;
     const { data } = await getAccountByRiotID(gameName, tagLine);
-    const allMatches = [];
-    let start = 0;
-    let hasMoreMatches = true;
-
-    while (hasMoreMatches) {
-      const { data: matchIds } = await getArenaMatchIds(data.puuid, start);
-      hasMoreMatches = matchIds.length === 100;
-
-      const matchDetails = await Promise.all(matchIds.map(matchId => getMatchDetails(matchId)));
-      allMatches.push(...matchDetails);
-
-      start += 100;
-    }
+    const allMatches = await fetchMatchDetailsWithDB(data.puuid);
 
     // Create a map to track wins and total games for each teammate
     const teammateStats = new Map();
@@ -148,19 +168,7 @@ app.get('/getChampionsPlayed/:gameName/:tagLine', async (req, res) => {
   try {
     const { gameName, tagLine } = req.params;
     const { data } = await getAccountByRiotID(gameName, tagLine);
-    const allMatches = [];
-    let start = 0;
-    let hasMoreMatches = true;
-
-    while (hasMoreMatches) {
-      const { data: matchIds } = await getArenaMatchIds(data.puuid, start);
-      hasMoreMatches = matchIds.length === 100;
-
-      const matchDetails = await Promise.all(matchIds.map(matchId => getMatchDetails(matchId)));
-      allMatches.push(...matchDetails);
-
-      start += 100;
-    }
+    const allMatches = await fetchMatchDetailsWithDB(data.puuid);
 
     const championsPlayed = new Set();
 
