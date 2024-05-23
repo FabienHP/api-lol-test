@@ -26,6 +26,7 @@ services:
       - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
     networks:
       - app-mongo-network
+      - mongo-express-mongo-network
 
   mongo-express:
     image: mongo-express:latest
