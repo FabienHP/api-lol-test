@@ -2,7 +2,8 @@
   "name": "api-lol-test",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/server.js",
+  "type": "module",
   "scripts": {
     "start": "nodemon server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -12,17 +13,20 @@
     "url": "git+https://github.com/FabienHP/api-lol-test.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "Fabien Fiette",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/FabienHP/api-lol-test/issues"
   },
   "homepage": "https://github.com/FabienHP/api-lol-test#readme",
   "dependencies": {
-    "axios": "^0.19.2",
+    "axios": "^1.7.2",
     "bottleneck": "^2.19.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.17.1",
-    "nodemon": "^2.0.2"
+    "canvas": "^2.11.2",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-list-endpoints": "^7.1.0",
+    "fs-extra": "^11.2.0",
+    "nodemon": "^3.1.0"
   }
 }

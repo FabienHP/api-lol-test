@@ -1,6 +1,6 @@
-const axios = require('axios');
-const dotenv = require('dotenv');
-dotenv.config();
+import axios from 'axios';
+import { config } from 'dotenv';
+config();
 
 const axiosInstance = axios.create({
   headers: {
@@ -9,4 +9,4 @@ const axiosInstance = axios.create({
   },
 });
 
-module.exports = axiosInstance;
+export default axiosInstance;
