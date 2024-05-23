@@ -9,6 +9,7 @@ services:
       - mongo-express
     restart: unless-stopped
     networks:
+      - app-mongo-network
       - traefik-proxy
     labels:
       - "traefik.enable=true"
@@ -23,6 +24,8 @@ services:
     volumes:
       - mongo-data:/data/db
       - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
+    networks:
+      - app-mongo-network
 
   mongo-express:
     image: mongo-express:latest
@@ -52,3 +55,5 @@ volumes:
 networks:
   traefik-proxy:
     external: true
+  app-mongo-network:
+    driver: bridge
