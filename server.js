@@ -42,6 +42,7 @@ mongoose.connect(mongoURI);
 
 const matchSchema = new mongoose.Schema({
   puuid: String,
+  playerName: String,
   matchId: String,
   data: Object
 });
@@ -78,7 +79,7 @@ const getCachedChampionImage = async (championName) => {
   }
 };
 
-const fetchMatchDetailsWithDB = async (puuid) => {
+const fetchMatchDetailsWithDB = async (puuid, playerName) => {
   const existingMatches = await Match.find({ puuid }).exec();
   const existingMatchIds = existingMatches.map(match => match.matchId);
 
@@ -97,6 +98,7 @@ const fetchMatchDetailsWithDB = async (puuid) => {
 
       const matchDocuments = matchDetails.map(match => ({
         puuid,
+        playerName,
         matchId: match.metadata.matchId,
         data: match
       }));
@@ -114,7 +116,7 @@ app.get('/getAllArenaGames/:gameName/:tagLine', async (req, res) => {
   try {
     const { gameName, tagLine } = req.params;
     const { data } = await getAccountByRiotID(gameName, tagLine);
-    const allMatches = await fetchMatchDetailsWithDB(data.puuid);
+    const allMatches = await fetchMatchDetailsWithDB(data.puuid, data.gameName);
 
     res.send(allMatches);
   } catch (error) {
@@ -127,7 +129,7 @@ app.get('/getArenaWinRate/:gameName/:tagLine', async (req, res) => {
   try {
     const { gameName, tagLine } = req.params;
     const { data } = await getAccountByRiotID(gameName, tagLine);
-    const allMatches = await fetchMatchDetailsWithDB(data.puuid);
+    const allMatches = await fetchMatchDetailsWithDB(data.puuid, data.gameName);
 
     // Create a map to track wins and total games for each teammate
     const teammateStats = new Map();
@@ -168,7 +170,7 @@ app.get('/getChampionsPlayed/:gameName/:tagLine', async (req, res) => {
   try {
     const { gameName, tagLine } = req.params;
     const { data } = await getAccountByRiotID(gameName, tagLine);
-    const allMatches = await fetchMatchDetailsWithDB(data.puuid);
+    const allMatches = await fetchMatchDetailsWithDB(data.puuid, data.gameName);
 
     const championsPlayed = new Set();
 
