@@ -4,25 +4,27 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
-    ports:
-      - "3000:3000"
     depends_on:
       - mongo
       - mongo-express
+    restart: unless-stopped
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app.rule=Host(`arena-api.fabienhp.com`)"
+      - "traefik.http.routers.app.entrypoints=websecure"
+      - "traefik.http.routers.app.tls.certresolver=myresolver"
 
   mongo:
     image: mongo:latest
     restart: always
-    ports:
-      - "27017:27017"
     volumes:
       - mongo-data:/data/db
       - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js
 
   mongo-express:
     image: mongo-express:latest
-    ports:
-      - "8081:8081"
     environment:
       - ME_CONFIG_MONGODB_ADMINUSERNAME=root
       - ME_CONFIG_MONGODB_ADMINPASSWORD=example
@@ -33,6 +35,17 @@ services:
       - ME_CONFIG_SITE_HOST=localhost
     depends_on:
       - mongo
+    networks:
+      - traefik-proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mongo-express.rule=Host(`mongo-express.fabienhp.com`)"
+      - "traefik.http.routers.mongo-express.entrypoints=websecure"
+      - "traefik.http.routers.mongo-express.tls.certresolver=myresolver"
 
 volumes:
   mongo-data:
+
+networks:
+  traefik-proxy:
+    external: true
