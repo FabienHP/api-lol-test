@@ -119,9 +119,47 @@ const fetchMatchDetailsWithDB = async (puuid, playerName) => {
   return [...existingMatches.map(match => match.data), ...allMatches];
 };
 
+// Helper function to generate the HTML with Open Graph metadata
+const generateOpenGraphHtml = (url, title, description, imageUrl) => `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta property="og:title" content="${title}" />
+    <meta property="og:description" content="${description}" />
+    <meta property="og:image" content="${imageUrl}" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="800" />
+    <meta property="og:image:height" content="600" />
+    <meta property="og:url" content="${url}" />
+    <meta property="og:type" content="website" />
+    <title>${title}</title>
+  </head>
+  <body>
+    <h1>${title}</h1>
+    <img src="${imageUrl}" alt="${description}" />
+  </body>
+  </html>
+`;
+
 app.get('/getArenaWinRate/:gameName/:tagLine', async (req, res) => {
   try {
+    const userAgent = req.headers['user-agent'] || '';
     const { gameName, tagLine } = req.params;
+    const imageUrl = `https://arena-api.fabienhp.com/getArenaWinRate/${gameName}/${tagLine}/image`;
+    
+    if (userAgent.includes('Discordbot')) {
+      const html = generateOpenGraphHtml(
+        req.originalUrl,
+        'Arena Win Rates',
+        `View the win rates with teammates in Arena mode for ${gameName}.`,
+        imageUrl
+      );
+      res.send(html);
+      return;
+    }
+
     const { data } = await getAccountByRiotID(gameName, tagLine);
     const allMatches = await fetchMatchDetailsWithDB(data.puuid, data.gameName);
 
@@ -229,7 +267,21 @@ app.get('/getArenaWinRate/:gameName/:tagLine', async (req, res) => {
 
 app.get('/getChampionsPlayed/:gameName/:tagLine', async (req, res) => {
   try {
+    const userAgent = req.headers['user-agent'] || '';
     const { gameName, tagLine } = req.params;
+    const imageUrl = `https://arena-api.fabienhp.com/getChampionsPlayed/${gameName}/${tagLine}/image`;
+
+    if (userAgent.includes('Discordbot')) {
+      const html = generateOpenGraphHtml(
+        req.originalUrl,
+        'Champions Played',
+        `View the champions played in Arena mode for ${gameName}.`,
+        imageUrl
+      );
+      res.send(html);
+      return;
+    }
+
     const { data } = await getAccountByRiotID(gameName, tagLine);
     const allMatches = await fetchMatchDetailsWithDB(data.puuid, data.gameName);
 
