@@ -47,8 +47,6 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.mongo-express.rule=Host(`mongo-express.fabienhp.com`)"
-      - "traefik.http.routers.mongo-express.service=mongo-express"
-      - "traefik.http.routers.mongo-express.middlewares=traefik-auth"
       - "traefik.http.routers.mongo-express.entrypoints=websecure"
       - "traefik.http.routers.mongo-express.tls.certresolver=myresolver"
       - "traefik.http.services.mongo-express.loadbalancer.server.port=8081"
