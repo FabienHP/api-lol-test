@@ -2,7 +2,7 @@ import express from 'express';
 import Bottleneck from 'bottleneck';
 import axiosInstance from './axiosInstance.js';
 import expressListEndpoints from 'express-list-endpoints';
-import { createCanvas, loadImage } from 'canvas';
+import { createCanvas, loadImage, registerFont } from 'canvas';
 import axios from 'axios';
 import fs from 'fs-extra';
 import path from 'path';
@@ -14,6 +14,9 @@ const port = 3000;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const championImageCacheDir = path.join(__dirname, 'champion_images');
 const checkmarkImagePath = path.join(__dirname, 'checkmark.png');
+
+// Register the Spiegel font
+registerFont(path.join(__dirname, 'Spiegel-Regular.ttf'), { family: 'Spiegel' });
 
 // Ensure the cache directory exists
 fs.ensureDirSync(championImageCacheDir);
@@ -51,6 +54,10 @@ const Match = mongoose.model('Match', matchSchema);
 
 const getAccountByRiotID = async (gameName, tagLine) => {
   return limiter.schedule(() => axiosInstance.get(`https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}`));
+};
+
+const getSummonerByPUUID = async (puuid) => {
+  return limiter.schedule(() => axiosInstance.get(`https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`));
 };
 
 const getArenaMatchIds = async (puuid, start) => {
@@ -112,19 +119,6 @@ const fetchMatchDetailsWithDB = async (puuid, playerName) => {
   return [...existingMatches.map(match => match.data), ...allMatches];
 };
 
-app.get('/getAllArenaGames/:gameName/:tagLine', async (req, res) => {
-  try {
-    const { gameName, tagLine } = req.params;
-    const { data } = await getAccountByRiotID(gameName, tagLine);
-    const allMatches = await fetchMatchDetailsWithDB(data.puuid, data.gameName);
-
-    res.send(allMatches);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send('An error occurred while fetching data from Riot Games API.');
-  }
-});
-
 app.get('/getArenaWinRate/:gameName/:tagLine', async (req, res) => {
   try {
     const { gameName, tagLine } = req.params;
@@ -139,7 +133,7 @@ app.get('/getArenaWinRate/:gameName/:tagLine', async (req, res) => {
       const teammates = match.info.participants.filter(participant => participant.teamId === player.teamId && participant.puuid !== data.puuid);
 
       for (const teammate of teammates) {
-        const stats = teammateStats.get(teammate.puuid) || { summonerName: teammate.summonerName, wins: 0, total: 0 };
+        const stats = teammateStats.get(teammate.puuid) || { puuid: teammate.puuid, summonerName: teammate.summonerName, wins: 0, total: 0 };
 
         stats.total++;
         if (player.win) {
@@ -152,14 +146,81 @@ app.get('/getArenaWinRate/:gameName/:tagLine', async (req, res) => {
 
     // Calculate win rate for each teammate
     const winRates = [];
+    const teammateProfiles = new Map();
 
     for (const stats of teammateStats.values()) {
       if (stats.total > 2) {
-        winRates.push({ summonerName: stats.summonerName, winRate: ((stats.wins / stats.total) * 100).toFixed(2), totalGames: stats.total });
+        if (!teammateProfiles.has(stats.puuid)) {
+          const { data: teammateData } = await getSummonerByPUUID(stats.puuid);
+          teammateProfiles.set(stats.puuid, teammateData);
+        }
+        const profile = teammateProfiles.get(stats.puuid);
+        winRates.push({ summonerName: stats.summonerName, profileIconId: profile.profileIconId, winRate: ((stats.wins / stats.total) * 100).toFixed(2), totalGames: stats.total });
       }
     }
 
-    res.send(winRates.sort((a, b) => b.totalGames - a.totalGames));
+    // Sort win rates by total games played
+    winRates.sort((a, b) => b.totalGames - a.totalGames);
+
+    // Load teammate icons
+    const teammateIcons = await Promise.all(
+      winRates.map(async (rate) => {
+        const iconUrl = `https://ddragon.leagueoflegends.com/cdn/14.10.1/img/profileicon/${rate.profileIconId}.png`;
+        const response = await axios.get(iconUrl, { responseType: 'arraybuffer' });
+        return loadImage(Buffer.from(response.data));
+      })
+    );
+
+    // Generate the image
+    const canvasWidth = 800;
+    const canvasHeight = 60 * winRates.length + 100;
+    const canvas = createCanvas(canvasWidth, canvasHeight);
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#020A13';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+    // Border
+    ctx.strokeStyle = '#453716';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(0, 0, canvasWidth, canvasHeight);
+
+    // Title
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 24px Spiegel';
+    ctx.fillText('Teammate Win Rates', canvasWidth / 2 - 100, 50);
+
+    // List win rates
+    ctx.font = '20px Spiegel';
+    let y = 90;
+
+    winRates.forEach((rate, index) => {
+      // Block background
+      ctx.fillStyle = '#1A1C21';
+      ctx.fillRect(20, y, canvasWidth - 40, 50);
+
+      // Block border
+      ctx.strokeStyle = '#4B4B49';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(20, y, canvasWidth - 40, 50);
+
+      // Icon
+      const icon = teammateIcons[index];
+      if (icon) {
+        ctx.drawImage(icon, 30, y + 5, 40, 40);
+      }
+
+      // Text
+      ctx.fillStyle = '#FFFFFF';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${rate.summonerName}: ${rate.winRate}% (${rate.totalGames} games)`, canvasWidth / 2 + 20, y + 30);
+
+      y += 60;
+    });
+
+    res.setHeader('Content-Type', 'image/png');
+    canvas.createPNGStream().pipe(res);
   } catch (error) {
     console.error(error);
     res.status(500).send('An error occurred while fetching data from Riot Games API.');
