@@ -340,6 +340,81 @@ app.get('/getChampionsPlayed/:gameName/:tagLine', async (req, res) => {
   }
 });
 
+app.get('/getChampionsWinned/:gameName/:tagLine', async (req, res) => {
+  try {
+    const userAgent = req.headers['user-agent'] || '';
+    const { gameName, tagLine } = req.params;
+    const imageUrl = `https://arena-api.fabienhp.com/getChampionsWinned/${gameName}/${tagLine}/image`;
+
+    if (userAgent.includes('Discordbot')) {
+      const html = generateOpenGraphHtml(
+        req.originalUrl,
+        'Champions Winned',
+        `View champions winned with ${gameName} in Arena mode.`,
+        imageUrl
+      );
+      res.send(html);
+      return;
+    }
+
+    const { data } = await getAccountByRiotID(gameName, tagLine);
+    const allMatches = await fetchMatchDetailsWithDB(data.puuid, data.gameName);
+
+    const championsWinned = new Set();
+
+    for (const match of allMatches) {
+      const player = match.info.participants.find(participant => participant.puuid === data.puuid);
+      if (player && player.placement === 1) {
+        championsWinned.add(player.championName);
+      }
+    }
+
+    const allChampions = await getAllChampions();
+
+    // Generate the image
+    const canvasWidth = 1198;
+    const canvasHeight = 828;
+    const canvas = createCanvas(canvasWidth, canvasHeight);
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#453716';
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+    ctx.fillStyle = '#020A13';
+    ctx.fillRect(2, 2, canvasWidth - 4, canvasHeight - 4);
+
+    const championImages = await Promise.all(
+      allChampions.map(name => getCachedChampionImage(name))
+    );
+
+    const checkMark = await loadImage(checkmarkImagePath);
+
+    let x = 10;
+    let y = 10;
+    const imageSize = 64;
+    const padding = 10;
+
+    championImages.forEach((image, index) => {
+      if (x + imageSize > canvasWidth) {
+        x = 10;
+        y += imageSize + padding;
+      }
+      ctx.drawImage(image, x, y, imageSize, imageSize);
+      if (championsWinned.has(allChampions[index])) {
+        ctx.fillStyle = '#00000099';
+        ctx.fillRect(x, y, imageSize, imageSize);
+        ctx.drawImage(checkMark, x + imageSize - 14, y - 6, 20, 20);
+      }
+      x += imageSize + padding;
+    });
+
+    res.setHeader('Content-Type', 'image/png');
+    canvas.createPNGStream().pipe(res);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send('An error occurred while fetching data from Riot Games API.');
+  }
+});
+
 app.get('/', (_, res) => {
   const endpoints = expressListEndpoints(app);
   let response = '<h1>Available Routes</h1><ul>';
