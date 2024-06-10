@@ -72,7 +72,7 @@ const getMatchDetails = async (matchId) => {
 
 const getAllChampions = async () => {
   const { data } = await axios.get('https://ddragon.leagueoflegends.com/cdn/14.10.1/data/en_US/champion.json');
-  return Object.keys(data.data).sort().map(champion => champion.toLowerCase());
+  return Object.keys(data.data).sort();
 };
 
 const getCachedChampionImage = async (championName) => {
@@ -325,7 +325,7 @@ app.get('/getChampionsPlayed/:gameName/:tagLine', async (req, res) => {
         y += imageSize + padding;
       }
       ctx.drawImage(image, x, y, imageSize, imageSize);
-      if (championsPlayed.has(allChampions[index])) {
+      if (championsPlayed.has(allChampions[index].toLowerCase())) {
         ctx.fillStyle = '#00000099';
         ctx.fillRect(x, y, imageSize, imageSize);
         ctx.drawImage(checkMark, x + imageSize - 14, y - 6, 20, 20);
@@ -400,7 +400,7 @@ app.get('/getChampionsWinned/:gameName/:tagLine', async (req, res) => {
         y += imageSize + padding;
       }
       ctx.drawImage(image, x, y, imageSize, imageSize);
-      if (championsWinned.has(allChampions[index])) {
+      if (championsWinned.has(allChampions[index].toLowerCase())) {
         ctx.fillStyle = '#00000099';
         ctx.fillRect(x, y, imageSize, imageSize);
         ctx.drawImage(checkMark, x + imageSize - 14, y - 6, 20, 20);
