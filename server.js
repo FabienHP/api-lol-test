@@ -8,6 +8,7 @@ import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import mongoose from 'mongoose';
+import { log } from 'console';
 
 const app = express();
 const port = 3000;
@@ -71,7 +72,7 @@ const getMatchDetails = async (matchId) => {
 
 const getAllChampions = async () => {
   const { data } = await axios.get('https://ddragon.leagueoflegends.com/cdn/14.10.1/data/en_US/champion.json');
-  return Object.keys(data.data).sort();
+  return Object.keys(data.data).sort().map(champion => champion.toLowerCase());
 };
 
 const getCachedChampionImage = async (championName) => {
@@ -290,7 +291,7 @@ app.get('/getChampionsPlayed/:gameName/:tagLine', async (req, res) => {
     for (const match of allMatches) {
       const player = match.info.participants.find(participant => participant.puuid === data.puuid);
       if (player) {
-        championsPlayed.add(player.championName);
+        championsPlayed.add(player.championName.toLowerCase());
       }
     }
 
@@ -365,7 +366,7 @@ app.get('/getChampionsWinned/:gameName/:tagLine', async (req, res) => {
     for (const match of allMatches) {
       const player = match.info.participants.find(participant => participant.puuid === data.puuid);
       if (player && player.placement === 1) {
-        championsWinned.add(player.championName);
+        championsWinned.add(player.championName.toLowerCase());
       }
     }
 
